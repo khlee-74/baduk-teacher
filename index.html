@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#102b50">
+<title>나만의 바둑 선생님</title>
+<style>
+:root{--navy:#102b50;--blue:#1765a0;--gold:#d9ad58;--paper:#fffdf6;--ink:#203047;--muted:#66758a}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(145deg,#edf3f8,#f8f4e9);font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:var(--ink)}
+header{background:linear-gradient(120deg,var(--navy),var(--blue));color:white;padding:20px 16px 22px;text-align:center}
+header h1{margin:0;font-size:clamp(22px,5vw,32px);letter-spacing:-.04em}
+header p{margin:7px 0 0;color:#dbe9f7;font-size:14px}
+main{max-width:1050px;margin:18px auto;padding:0 12px 30px;display:grid;grid-template-columns:minmax(280px,1.05fr) minmax(280px,.95fr);gap:16px}
+.panel{background:#fff;border:1px solid #dce5ed;border-radius:18px;padding:15px;box-shadow:0 8px 24px #1738580c;min-width:0}
+.board-wrap{width:100%;max-width:580px;margin:auto;position:relative}
+canvas{display:block;width:100%;height:auto;touch-action:manipulation;border-radius:10px;cursor:pointer}
+.stats{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:12px 0 0;font-size:13px;color:var(--muted)}
+.pill{background:#edf4fa;border-radius:999px;padding:6px 10px}
+h2{font-size:19px;margin:0 0 10px;color:var(--navy)}
+h3{font-size:15px;margin:16px 0 6px}
+.lesson-title{font-size:22px;font-weight:800;letter-spacing:-.03em}
+.lesson-desc{line-height:1.65;color:#44556b;margin:9px 0}
+.tip{background:#f2f7fb;border-left:4px solid var(--blue);border-radius:8px;padding:11px 12px;line-height:1.6;font-size:14px}
+.feedback{margin-top:12px;padding:12px;border-radius:10px;background:#f7f8fa;line-height:1.6;min-height:54px;font-size:14px}
+.feedback.good{background:#eaf7ef;color:#17633a}.feedback.bad{background:#fff2e7;color:#8a4619}
+.controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button,select{font:inherit;border-radius:10px;border:1px solid #c9d6e2;padding:10px 12px;background:white;color:var(--ink)}
+button{cursor:pointer;font-weight:650}
+button.primary{background:var(--blue);color:white;border-color:var(--blue)}
+button:active{transform:translateY(1px)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.progress{height:7px;background:#e7edf2;border-radius:99px;overflow:hidden;margin:10px 0 14px}
+.progress span{display:block;height:100%;background:var(--gold);width:0;transition:width .25s}
+.small{font-size:12px;color:var(--muted);line-height:1.6}
+.lesson-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.lesson-choice{text-align:left;padding:10px;border-radius:11px;background:#fff}
+.lesson-choice.active{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue);background:#f1f7fc}
+.lesson-choice span{display:block;font-size:12px;color:var(--muted);margin-top:4px;font-weight:400}
+footer{text-align:center;color:#758398;font-size:12px;padding:0 12px 22px}
+@media(max-width:760px){main{grid-template-columns:1fr;margin-top:12px;gap:12px}.panel{padding:12px}header{padding:17px 12px}.lesson-title{font-size:20px}}
+</style>
+</head>
+<body>
+<header><h1>나만의 바둑 선생님</h1><p>한 수씩 배우고, 직접 놓으며 익히는 초급 바둑 교실</p></header>
+<main>
+<section class="panel">
+  <h2>바둑판</h2>
+  <div class="board-wrap"><canvas id="board" width="600" height="600" aria-label="9줄 바둑판"></canvas></div>
+  <div class="stats"><span class="pill" id="turn">내 차례: 흑</span><span class="pill" id="moves">착수 0수</span><span class="pill" id="score">정답 0 / 0</span></div>
+  <div class="controls">
+    <button id="undo">한 수 되돌리기</button><button id="reset">판 다시 놓기</button>
+    <button id="hint" class="primary">힌트 보기</button>
+  </div>
+  <p class="small">교차점을 눌러 돌을 놓으세요. 학습 문제에서는 목표 위치를 찾아야 합니다. 이 버전은 9×9 학습판이며, 정식 대국용 바둑 엔진은 포함하지 않습니다.</p>
+</section>
+<section class="panel">
+  <h2>오늘의 수업</h2>
+  <div class="progress"><span id="progress"></span></div>
+  <div class="lesson-title" id="lessonTitle">1. 바둑의 활로</div>
+  <p class="lesson-desc" id="lessonDesc">돌이 숨 쉴 수 있는 빈 교차점, 즉 ‘활로’를 알아봅니다.</p>
+  <div class="tip" id="goal">목표: 흑돌의 활로가 몇 개인지 살펴보고, 안내된 위치에 돌을 놓아 보세요.</div>
+  <div id="feedback" class="feedback" aria-live="polite">준비되면 바둑판에서 한 수를 선택하세요. 막히면 힌트를 눌러 보세요.</div>
+  <div class="controls"><button id="next" class="primary">다음 수업</button><button id="showAnswer">정답 위치 표시</button></div>
+  <h3>수업 목록</h3>
+  <div class="lesson-list" id="lessonList"></div>
+  <h3>오늘 기억할 것</h3>
+  <p class="small" id="remember">활로는 돌과 이어진 상하좌우의 빈 교차점입니다. 대각선은 활로가 아닙니다.</p>
+</section>
+</main>
+<footer>나만의 바둑 선생님 · 무료 학습용 프로토타입 · 기록은 현재 브라우저 안에서만 유지됩니다.</footer>
+<script>
+(() => {
+'use strict';
+const N=9, canvas=document.getElementById('board'), ctx=canvas.getContext('2d');
+const $=id=>document.getElementById(id);
+const lessons=[
+ {title:'1. 바둑의 활로',desc:'돌이 숨 쉴 수 있는 빈 교차점, 즉 ‘활로’를 알아봅니다.',goal:'목표: 가운데 흑돌의 바로 위 빈 교차점에 흰돌을 놓아 보세요.',remember:'활로는 상하좌우로 연결된 빈 교차점입니다. 대각선은 활로가 아닙니다.',hint:'가운데 흑돌 바로 위 교차점을 찾아보세요.',answer:[4,3],setup:[{x:4,y:4,c:1}],mode:'place',color:2,success:'좋아요! 돌은 상하좌우의 빈 교차점과 연결됩니다. 이 빈 점이 흑돌의 활로예요.'},
+ {title:'2. 단수란?',desc:'돌의 활로가 하나만 남은 상태를 ‘단수’라고 합니다.',goal:'목표: 흑돌을 단수로 만들려면 흰돌을 어디에 놓아야 할까요?',remember:'상대 돌의 마지막 활로를 막으면 잡을 수 있는 상태인 단수가 됩니다.',hint:'흑돌의 위·아래·왼쪽은 이미 막혀 있습니다. 오른쪽 빈 점을 보세요.',answer:[5,4],setup:[{x:4,y:4,c:1},{x:4,y:3,c:2},{x:4,y:5,c:2},{x:3,y:4,c:2}],mode:'place',color:2,success:'정확합니다! 마지막 활로를 막아 흑돌을 단수로 만들었어요. 실제 대국에서는 상대가 도망갈 수 있는지도 함께 살펴야 합니다.'},
+ {title:'3. 돌 잡기',desc:'마지막 활로를 메우면 상대 돌을 판에서 들어냅니다.',goal:'목표: 흑돌의 마지막 활로인 오른쪽 교차점에 흰돌을 놓아 잡아 보세요.',remember:'상대 돌 무리의 활로가 모두 없어지면 그 돌들을 잡습니다.',hint:'흑돌의 위·아래·왼쪽은 흰돌이 차지하고 있습니다. 오른쪽이 마지막 활로입니다.',answer:[5,4],setup:[{x:4,y:4,c:1},{x:4,y:3,c:2},{x:4,y:5,c:2},{x:3,y:4,c:2}],mode:'capture',color:2,success:'멋집니다! 흑돌의 활로가 0개가 되어 흑돌을 잡았습니다.'},
+ {title:'4. 내 돌 지키기',desc:'내 돌의 활로가 하나뿐이라면 상대가 잡을 수 있으니 조심해야 합니다.',goal:'목표: 흑돌을 지키기 위해 위쪽 빈 교차점에 흑돌을 놓아 보세요.',remember:'돌을 놓기 전 내 돌의 활로가 몇 개인지, 상대가 바로 잡을 수 있는지 확인하세요.',hint:'흑돌 바로 위 빈 교차점을 선택하세요.',answer:[4,3],setup:[{x:4,y:4,c:1},{x:4,y:5,c:2},{x:3,y:4,c:2},{x:5,y:4,c:2}],mode:'place',color:1,success:'좋아요! 흑돌의 연결을 돕고 활로를 늘리는 방향으로 생각했어요.'},
+ {title:'5. 연결하기',desc:'내 돌끼리 연결하면 함께 힘을 쓰고 서로를 지키기 쉬워집니다.',goal:'목표: 기존 흑돌과 상하좌우로 이어지도록 흑돌을 놓아 보세요.',remember:'대각선으로 가까워도 직접 연결된 것은 아닙니다. 상하좌우 연결을 확인하세요.',hint:'아래쪽 흑돌 바로 위 교차점을 선택하세요.',answer:[4,4],setup:[{x:4,y:3,c:1},{x:4,y:5,c:1},{x:3,y:4,c:2},{x:5,y:4,c:2}],mode:'place',color:1,success:'정답입니다! 흑돌 두 개가 상하로 이어졌어요. 연결은 기본이면서 매우 중요한 전략입니다.'},
+ {title:'6. 착수 전 3초',desc:'수를 놓기 전에 세 가지를 점검하는 습관을 만들어 봅시다.',goal:'목표: 흑돌의 활로를 늘릴 수 있는 왼쪽 빈 교차점을 선택하세요.',remember:'① 상대의 위협 ② 내 돌의 활로 ③ 내 돌끼리의 연결을 차례로 확인하세요.',hint:'가운데 흑돌의 왼쪽 빈 교차점이 좋은 후보입니다.',answer:[3,4],setup:[{x:4,y:4,c:1},{x:4,y:3,c:2},{x:4,y:5,c:2}],mode:'place',color:1,success:'잘했습니다! 착수 전에 주변을 살피는 습관이 실력의 출발점입니다.'}
+];
+let lessonIndex=0, board=[], history=[], correct=0, attempts=0, solved=false, showHint=false;
+function freshBoard(){board=Array.from({length:N},()=>Array(N).fill(0));history=[];const l=lessons[lessonIndex];l.setup.forEach(s=>board[s.y][s.x]=s.c);solved=false;showHint=false;updateStats();draw();setFeedback('문제의 목표를 읽고 바둑판에서 수를 선택하세요.','');$('progress').style.width=((lessonIndex)/lessons.length*100)+'%';}
+function draw(){
+ const w=canvas.width,h=canvas.height,pad=42,step=(w-pad*2)/(N-1);
+ ctx.clearRect(0,0,w,h);
+ const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#e9c783');g.addColorStop(1,'#d9ad67');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+ ctx.strokeStyle='#765329';ctx.lineWidth=1.5;
+ for(let i=0;i<N;i++){let q=pad+i*step;ctx.beginPath();ctx.moveTo(pad,q);ctx.lineTo(w-pad,q);ctx.stroke();ctx.beginPath();ctx.moveTo(q,pad);ctx.lineTo(q,h-pad);ctx.stroke();}
+ [2,4,6].forEach(y=>[2,4,6].forEach(x=>{ctx.beginPath();ctx.arc(pad+x*step,pad+y*step,3.5,0,Math.PI*2);ctx.fillStyle='#765329';ctx.fill()}));
+ const l=lessons[lessonIndex];
+ if(showHint&&!solved){const [ax,ay]=l.answer;ctx.beginPath();ctx.arc(pad+ax*step,pad+ay*step,step*.34,0,Math.PI*2);ctx.strokeStyle='#1680d0';ctx.lineWidth=4;ctx.stroke();}
+ for(let y=0;y<N;y++)for(let x=0;x<N;x++){if(!board[y][x])continue;let px=pad+x*step,py=pad+y*step;ctx.beginPath();ctx.arc(px,py,step*.43,0,Math.PI*2);ctx.fillStyle=board[y][x]===1?'#16191d':'#fffdf7';ctx.shadowColor='#0004';ctx.shadowBlur=5;ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle=board[y][x]===1?'#050607':'#777';ctx.lineWidth=1.3;ctx.stroke();}
+}
+function setFeedback(t,type){$('feedback').textContent=t;$('feedback').className='feedback'+(type?' '+type:'');}
+function updateStats(){ $('turn').textContent='내 차례: '+(lessons[lessonIndex].color===1?'흑':'백');$('moves').textContent='착수 '+history.length+'수';$('score').textContent='정답 '+correct+' / '+attempts;}
+function nearest(e){const r=canvas.getBoundingClientRect(),sx=canvas.width/r.width,sy=canvas.height/r.height;const x=(e.clientX-r.left)*sx,y=(e.clientY-r.top)*sy,pad=42,step=(canvas.width-pad*2)/(N-1);const gx=Math.round((x-pad)/step),gy=Math.round((y-pad)/step);if(gx<0||gx>=N||gy<0||gy>=N||Math.hypot(x-(pad+gx*step),y-(pad+gy*step))>step*.48)return null;return [gx,gy];}
+canvas.addEventListener('pointerdown',e=>{e.preventDefault();const p=nearest(e);if(!p||solved)return;const [x,y]=p;if(board[y][x]){setFeedback('그 교차점에는 이미 돌이 있어요. 다른 빈 교차점을 선택하세요.','bad');return;}const l=lessons[lessonIndex];attempts++;if(x===l.answer[0]&&y===l.answer[1]){history.push({board:board.map(r=>r.slice())});board[y][x]=l.color;if(l.mode==='capture'){const [ax,ay]=l.setup.find(s=>s.c===1&&s.x===4&&s.y===4)?[4,4]:[4,4];board[ay][ax]=0;}solved=true;correct++;showHint=false;setFeedback(l.success,'good');$('progress').style.width=((lessonIndex+1)/lessons.length*100)+'%';}else{setFeedback('아쉽지만 그곳은 이번 문제의 핵심 수가 아니에요. '+l.hint,'bad');}updateStats();draw();});
+$('hint').onclick=()=>{showHint=true;draw();setFeedback('파란 원으로 표시된 교차점을 살펴보세요. 왜 이곳이 좋은 수인지 생각해 봅시다.','');};
+$('showAnswer').onclick=()=>{showHint=true;draw();setFeedback('정답 위치를 표시했어요. 파란 원을 확인한 뒤 직접 놓아 보세요.','');};
+$('undo').onclick=()=>{if(history.length){board=history.pop().board;solved=false;draw();setFeedback('한 수 되돌렸어요. 다시 생각해 보세요.','');updateStats();}else{setFeedback('되돌릴 수가 아직 없습니다.','');}};
+$('reset').onclick=freshBoard;
+$('next').onclick=()=>{lessonIndex=(lessonIndex+1)%lessons.length;renderLesson();};
+function renderLesson(){const l=lessons[lessonIndex];$('lessonTitle').textContent=l.title;$('lessonDesc').textContent=l.desc;$('goal').textContent=l.goal;$('remember').textContent=l.remember;$('next').textContent=lessonIndex===lessons.length-1?'첫 수업으로 돌아가기':'다음 수업';document.querySelectorAll('.lesson-choice').forEach((b,i)=>b.classList.toggle('active',i===lessonIndex));freshBoard();}
+function buildList(){const root=$('lessonList');lessons.forEach((l,i)=>{const b=document.createElement('button');b.className='lesson-choice';b.innerHTML=l.title+'<span>'+['활로 이해','단수 만들기','돌 잡기','돌 지키기','돌 연결하기','생각 습관'][i]+'</span>';b.onclick=()=>{lessonIndex=i;renderLesson();};root.appendChild(b);});}
+buildList();renderLesson();
+})();
+</script>
+</body>
+</html>
